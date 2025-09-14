@@ -5,3 +5,7 @@ uvicorn
 pypdf
 streamlit
 requests
+flask
+PyPDF2
+faiss-cpu
+gunicorn
