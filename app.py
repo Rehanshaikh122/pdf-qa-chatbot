@@ -1,78 +1,85 @@
 import streamlit as st
 import requests
 
-st.set_page_config(page_title="PDF Q&A Bot", page_icon="💬")
+st.set_page_config(page_title="PDF Q&A Chatbot", page_icon="🤖", layout="centered")
 
+# Custom CSS for colorful chat bubbles
 st.markdown(
     """
     <style>
-    .chat-bubble-user {
-        background-color: #DCF8C6;
-        color: black;
-        padding: 10px 15px;
-        border-radius: 15px;
-        margin: 5px;
-        max-width: 70%;
-        float: right;
-        clear: both;
-    }
-    .chat-bubble-bot {
-        background-color: #ECECEC;
-        color: black;
-        padding: 10px 15px;
-        border-radius: 15px;
-        margin: 5px;
-        max-width: 70%;
-        float: left;
-        clear: both;
-    }
     .chat-container {
-        display: flex;
-        flex-direction: column;
+        max-width: 700px;
+        margin: auto;
+        padding: 10px;
     }
-    .source-text {
-        font-size: 0.8em;
-        color: #555;
-        margin-left: 10px;
+    .user-msg {
+        background-color: #4F9DFF;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 15px 15px 0px 15px;
+        margin: 8px 0;
+        text-align: right;
+    }
+    .bot-msg {
+        background-color: #EDEDED;
+        color: black;
+        padding: 10px 15px;
+        border-radius: 15px 15px 15px 0px;
+        margin: 8px 0;
+        text-align: left;
+    }
+    .title {
+        text-align: center;
+        font-size: 30px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #333333;
+    }
+    .subtitle {
+        text-align: center;
+        font-size: 16px;
+        margin-bottom: 30px;
+        color: #555555;
     }
     </style>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
-st.title("💬 PDF Q&A Chatbot")
-st.write("Ask me anything from the manual!")
+# Title
+st.markdown('<div class="title">🤖 PDF Q&A Chatbot</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Ask questions from your PDF and chat continuously!</div>', unsafe_allow_html=True)
 
-API_URL = "http://localhost:8000/ask"
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-if "history" not in st.session_state:
-    st.session_state.history = []
-
-# Input field
-user_query = st.text_input("💬 Type your question here:")
-
-if st.button("Send") and user_query.strip() != "":
-    try:
-        response = requests.post(API_URL, json={"query": user_query})
-        if response.status_code == 200:
-            data = response.json()
-            answer = data.get("answer", "No answer found")
-            sources = data.get("sources", [])
-
-            st.session_state.history.append(("user", user_query, []))
-            st.session_state.history.append(("bot", answer, sources))
-        else:
-            st.error("❌ Backend error. Make sure FastAPI server is running.")
-    except Exception as e:
-        st.error(f"⚠️ Error: {e}")
-
-# Chat display
-st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-for sender, msg, src in st.session_state.history:
-    if sender == "user":
-        st.markdown(f"<div class='chat-bubble-user'>{msg}</div>", unsafe_allow_html=True)
+# Chat history display
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+for msg in st.session_state.messages:
+    if msg["role"] == "user":
+        st.markdown(f'<div class="user-msg">{msg["content"]}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f"<div class='chat-bubble-bot'>{msg}</div>", unsafe_allow_html=True)
-        if src:
-            st.markdown(f"<div class='source-text'>📄 Sources: {', '.join(src)}</div>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(f'<div class="bot-msg">{msg["content"]}</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Input form at bottom
+with st.form("chat_form", clear_on_submit=True):
+    user_input = st.text_input("💬 Type your question:", "", placeholder="Ask something from the PDF...")
+    submitted = st.form_submit_button("Send")
+
+if submitted and user_input:
+    # Add user message
+    st.session_state.messages.append({"role": "user", "content": user_input})
+
+    try:
+        response = requests.post("http://localhost:8000/ask", json={"question": user_input})
+        bot_reply = response.json().get("answer", "❌ Sorry, I couldn’t find an answer.")
+    except:
+        bot_reply = "⚠️ Backend server not running. Please start `server.py`."
+
+    # Add bot reply
+    st.session_state.messages.append({"role": "bot", "content": bot_reply})
+
+    # Rerun app
+    st.rerun()
